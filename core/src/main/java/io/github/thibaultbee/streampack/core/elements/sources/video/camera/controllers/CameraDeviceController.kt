@@ -55,7 +55,7 @@ internal class CameraDeviceController private constructor(
 
     val id = cameraDevice.id
 
-    fun createCaptureRequestBuilder(template: Int = CameraDevice.TEMPLATE_RECORD): CaptureRequestWithTargetsBuilder {
+    fun createCaptureRequestBuilder(template: Int = CameraDevice.TEMPLATE_PREVIEW): CaptureRequestWithTargetsBuilder {
         val captureRequest = cameraDevice.createCaptureRequest(template)
         return CaptureRequestWithTargetsBuilder(captureRequest)
     }

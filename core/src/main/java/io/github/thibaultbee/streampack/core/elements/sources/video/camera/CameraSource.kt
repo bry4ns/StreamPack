@@ -124,6 +124,8 @@ internal class CameraSource(
         captureRequest.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON)
         captureRequest.set(CaptureRequest.CONTROL_AWB_MODE, CaptureRequest.CONTROL_AWB_MODE_AUTO)
         captureRequest.set(CaptureRequest.CONTROL_AE_ANTIBANDING_MODE, CaptureRequest.CONTROL_AE_ANTIBANDING_MODE_AUTO)
+        captureRequest.set(CaptureRequest.CONTROL_AE_LOCK, false)
+        captureRequest.set(CaptureRequest.CONTROL_AWB_LOCK, false)
 
         if (settings.focus.availableAutoModes.contains(CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_VIDEO)) {
             captureRequest.set(
