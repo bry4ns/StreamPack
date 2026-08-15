@@ -170,11 +170,23 @@ internal object CameraUtils {
             return Range(fps, fps)
         }
 
-        // Get smaller range
+        val scale = if (fpsRangeList.any { it.upper > 1000 }) 1000 else 1
+        val targetUpper = fps * scale
+
+        // Prefer dynamic auto-exposure range with lower bound (e.g., [15, 30] or [12, 30] or [7, 30])
+        // This allows the Camera HAL to adjust exposure duration in indoor/low-light environments just like the stock camera app.
+        val matchingUpper = fpsRangeList.filter { it.upper == targetUpper }
+        if (matchingUpper.isNotEmpty()) {
+            val dynamicRange = matchingUpper.firstOrNull { it.lower < targetUpper && it.lower >= 10 * scale }
+                ?: matchingUpper.firstOrNull { it.lower < targetUpper }
+                ?: matchingUpper.first()
+            Logger.d(TAG, "Selected dynamic AE Fps range $dynamicRange")
+            return dynamicRange
+        }
+
         var selectedFpsRange = fpsRangeList[0]
-        fpsRangeList = fpsRangeList.drop(0)
         fpsRangeList.forEach {
-            if ((it.upper - it.lower) < (selectedFpsRange.upper - selectedFpsRange.lower)) {
+            if (it.upper == targetUpper) {
                 selectedFpsRange = it
             }
         }

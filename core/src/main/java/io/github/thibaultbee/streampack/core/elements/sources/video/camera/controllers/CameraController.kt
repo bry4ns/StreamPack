@@ -164,9 +164,7 @@ internal class CameraController(
             getDeviceController().createCaptureRequestBuilder().apply {
                 captureRequestBuilder = this
 
-                val minFrameDuration = 1_000_000_000 / fpsRange.upper.toLong()
                 set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, fpsRange)
-                set(CaptureRequest.SENSOR_FRAME_DURATION, minFrameDuration)
                 onCaptureRequestBuilder()
             }
         }
@@ -369,13 +367,9 @@ internal class CameraController(
                 }
 
                 this@CameraController.fps = fps
-
                 val captureRequestBuilder = getCaptureRequestBuilder()
-
                 val range = fpsRange
-                val minFrameDuration = 1_000_000_000 / range.upper.toLong()
                 captureRequestBuilder.set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, range)
-                captureRequestBuilder.set(CaptureRequest.SENSOR_FRAME_DURATION, minFrameDuration)
 
                 if (isActiveFlow.value) {
                     applyRepeatingSessionUnsafe()
