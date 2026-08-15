@@ -315,8 +315,7 @@ internal class CameraController(
      */
     @RequiresPermission(Manifest.permission.CAMERA)
     fun <T> getSetting(key: CaptureRequest.Key<T?>): T? {
-        val captureRequestBuilder =
-            requireNotNull(captureRequestBuilder) { "CaptureRequestBuilder is null" }
+        val captureRequestBuilder = captureRequestBuilder ?: return null
         return captureRequestBuilder.get(key)
     }
 
