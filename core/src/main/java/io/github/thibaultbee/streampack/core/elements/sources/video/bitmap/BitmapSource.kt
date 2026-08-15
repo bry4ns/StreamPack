@@ -151,80 +151,14 @@ internal class BitmapSource(override val bitmap: Bitmap) : AbstractPreviewableSo
         } catch (e: InterruptedException) {
             // Ignore
         }
-        
-        // Now safe to recycle pre-composited bitmaps
-        compositedBitmaps.forEach { it.recycle() }
-        compositedBitmaps.clear()
-    }
-
-    // Pre-composited bitmaps (source + noise combined) for maximum performance
-    // Single drawBitmap call per frame instead of two
-    private val compositedBitmaps = mutableListOf<Bitmap>()
-    private var frameIndex = 0
-    // Number of pre-composited frames to cycle through
-    private val frameCount = 4
-    
-    private val noisePaint = Paint().apply {
-        alpha = 255 // Full opacity noise for maximum entropy
-        strokeWidth = 3f // Draw larger points for more visual noise
-    }
-    
-    /**
-     * Generate pre-composited bitmaps (source bitmap + heavy noise overlay).
-     * Heavy noise is intentional to prevent encoder from compressing too efficiently,
-     * which keeps bitrate closer to target. This helps avoid OBS scene switchers
-     * that detect "offline" streams when bitrate drops too low on static content.
-     */
-    private fun ensureCompositedBitmapsGenerated() {
-        if (compositedBitmaps.isNotEmpty()) return
-        
-        val width = bitmap.width
-        val height = bitmap.height
-        // Use 10,000 noise points - fast to generate
-        // With strokeWidth=3, each point covers ~9 pixels for decent coverage
-        val noisePointCount = 10000
-        
-        for (i in 0 until frameCount) {
-            // Create a copy of the source bitmap with noise baked in
-            val composited = bitmap.copy(Bitmap.Config.ARGB_8888, true) ?: continue
-            val canvas = android.graphics.Canvas(composited)
-            
-            // Draw noise points directly onto the copy
-            // Using full color range for maximum entropy
-            for (j in 0 until noisePointCount) {
-                val x = Random.nextInt(width).toFloat()
-                val y = Random.nextInt(height).toFloat()
-                // Full RGB noise for more entropy
-                val r = Random.nextInt(256)
-                val g = Random.nextInt(256)
-                val b = Random.nextInt(256)
-                noisePaint.color = Color.rgb(r, g, b)
-                canvas.drawPoint(x, y, noisePaint)
-            }
-            
-            compositedBitmaps.add(composited)
-        }
     }
 
     private fun drawOutput() {
         outputSurface?.let { surface ->
             try {
-                ensureCompositedBitmapsGenerated()
-                
+                if (bitmap.isRecycled) return@let
                 val canvas = surface.lockCanvas(null) ?: return@let
-                
-                // Single drawBitmap call - source and noise pre-composited
-                val bitmapToDraw = if (compositedBitmaps.isNotEmpty()) {
-                    compositedBitmaps.getOrNull(frameIndex % compositedBitmaps.size)?.takeIf { !it.isRecycled }
-                } else {
-                    bitmap.takeIf { !it.isRecycled }
-                }
-                
-                if (bitmapToDraw != null) {
-                    canvas.drawBitmap(bitmapToDraw, 0f, 0f, null)
-                    frameIndex++
-                }
-                
+                canvas.drawBitmap(bitmap, 0f, 0f, null)
                 surface.unlockCanvasAndPost(canvas)
             } catch (e: Exception) {
                 // Ignore drawing errors (bitmap recycled, surface invalid, etc.)
