@@ -22,6 +22,7 @@ import android.content.pm.PackageManager
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraMetadata
 import android.hardware.camera2.CaptureRequest
+import android.os.Build
 import android.util.Size
 import android.view.Surface
 import androidx.annotation.RequiresPermission
