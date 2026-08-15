@@ -126,6 +126,14 @@ internal class CameraSource(
         captureRequest.set(CaptureRequest.CONTROL_AE_ANTIBANDING_MODE, CaptureRequest.CONTROL_AE_ANTIBANDING_MODE_AUTO)
         captureRequest.set(CaptureRequest.CONTROL_AE_LOCK, false)
         captureRequest.set(CaptureRequest.CONTROL_AWB_LOCK, false)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            captureRequest.set(CaptureRequest.CONTROL_ENABLE_ZSL, true)
+        }
+        captureRequest.set(CaptureRequest.NOISE_REDUCTION_MODE, CaptureRequest.NOISE_REDUCTION_MODE_FAST)
+        captureRequest.set(CaptureRequest.EDGE_MODE, CaptureRequest.EDGE_MODE_FAST)
+        captureRequest.set(CaptureRequest.HOT_PIXEL_MODE, CaptureRequest.HOT_PIXEL_MODE_FAST)
+        captureRequest.set(CaptureRequest.SHADING_MODE, CaptureRequest.SHADING_MODE_FAST)
+        captureRequest.set(CaptureRequest.TONEMAP_MODE, CaptureRequest.TONEMAP_MODE_FAST)
 
         if (settings.focus.availableAutoModes.contains(CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_VIDEO)) {
             captureRequest.set(
