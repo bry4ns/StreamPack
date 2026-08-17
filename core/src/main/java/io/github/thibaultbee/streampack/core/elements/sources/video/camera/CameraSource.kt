@@ -128,7 +128,7 @@ internal class CameraSource(
         captureRequest.set(CaptureRequest.CONTROL_AE_LOCK, false)
         captureRequest.set(CaptureRequest.CONTROL_AWB_LOCK, false)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            captureRequest.set(CaptureRequest.CONTROL_ENABLE_ZSL, true)
+            captureRequest.set(CaptureRequest.CONTROL_ENABLE_ZSL, false)
         }
         captureRequest.set(CaptureRequest.NOISE_REDUCTION_MODE, CaptureRequest.NOISE_REDUCTION_MODE_FAST)
         captureRequest.set(CaptureRequest.EDGE_MODE, CaptureRequest.EDGE_MODE_FAST)

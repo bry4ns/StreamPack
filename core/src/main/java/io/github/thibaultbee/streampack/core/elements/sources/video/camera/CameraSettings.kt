@@ -1513,6 +1513,10 @@ class CameraSettings internal constructor(
             ): Int {
                 val supportedAFModes = characteristics.autoFocusModes
 
+                if (supportedAFModes.contains(CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_VIDEO)) {
+                    return CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_VIDEO
+                }
+
                 if (supportedAFModes.contains(preferredMode)) {
                     return preferredMode
                 }
