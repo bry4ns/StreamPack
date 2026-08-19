@@ -301,6 +301,7 @@ class OpenGlRenderer {
         if (program is SamplerShaderProgram) {
             // Copy the texture transformation matrix over.
             program.updateTextureMatrix(textureTransform)
+            program.updateCustomUniforms()
         }
 
         // Draw the rect.

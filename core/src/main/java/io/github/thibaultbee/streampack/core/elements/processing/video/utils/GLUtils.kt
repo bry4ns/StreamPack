@@ -712,7 +712,7 @@ void main() {
 
     class SamplerShaderProgram(
         dynamicRange: DynamicRangeProfile,
-        shaderProvider: ShaderProvider
+        private val shaderProvider: ShaderProvider
     ) : Program2D(
         if (dynamicRange.isHdr) HDR_VERTEX_SHADER else DEFAULT_VERTEX_SHADER,
         getFragmentShaderSource(shaderProvider)
@@ -758,6 +758,14 @@ void main() {
                 textureMat,  /*offset=*/0
             )
             checkGlErrorOrThrow("glUniformMatrix4fv")
+        }
+
+        fun updateCustomUniforms() {
+            shaderProvider.getUniformValues().forEach { (name, value) ->
+                val location = GLES20.glGetUniformLocation(mProgramHandle, name)
+                if (location >= 0) GLES20.glUniform1f(location, value)
+            }
+            checkGlErrorOrThrow("glUniform1f")
         }
 
         override fun loadLocations() {

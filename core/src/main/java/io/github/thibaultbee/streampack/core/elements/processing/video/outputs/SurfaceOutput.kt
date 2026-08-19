@@ -34,7 +34,8 @@ fun SurfaceOutput(
     isStreaming: () -> Boolean,
     sourceResolution: Size,
     needMirroring: Boolean,
-    sourceInfoProvider: ISourceInfoProvider
+    sourceInfoProvider: ISourceInfoProvider,
+    viewportOffsetX: Int = 0,
 ) =
     SurfaceOutput(
         descriptor.surface,
@@ -43,7 +44,8 @@ fun SurfaceOutput(
         isStreaming,
         sourceResolution,
         needMirroring,
-        sourceInfoProvider
+        sourceInfoProvider,
+        viewportOffsetX
     )
 
 class SurfaceOutput(
@@ -53,7 +55,8 @@ class SurfaceOutput(
     val isStreaming: () -> Boolean,
     sourceResolution: Size,
     val needMirroring: Boolean,
-    sourceInfoProvider: ISourceInfoProvider
+    sourceInfoProvider: ISourceInfoProvider,
+    private val viewportOffsetX: Int = 0,
 ) :
     ISurfaceOutput {
     override val type = ISurfaceOutput.OutputType.INTERNAL
@@ -80,7 +83,7 @@ class SurfaceOutput(
     override val viewportRect: Rect = calculateViewportRect(
         sourceInfoProvider.getSurfaceSize(targetResolution).rotate(rotationDegrees),
         targetResolution
-    )
+    ).apply { offset(viewportOffsetX, 0) }
 
     private fun calculateViewportRect(sourceSize: Size, targetSize: Size): Rect {
         val sourceRatio = sourceSize.width.toFloat() / sourceSize.height

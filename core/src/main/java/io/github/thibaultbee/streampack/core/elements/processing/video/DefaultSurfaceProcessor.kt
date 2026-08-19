@@ -46,6 +46,7 @@ import kotlin.coroutines.suspendCoroutine
 private class DefaultSurfaceProcessor(
     private val dynamicRangeProfile: DynamicRangeProfile,
     private val glThread: HandlerThreadExecutor,
+    private val filterState: VideoFilterState,
 ) : ISurfaceProcessorInternal, SurfaceTexture.OnFrameAvailableListener, ISnapshotable {
     private val renderer = OpenGlRenderer()
 
@@ -68,7 +69,17 @@ private class DefaultSurfaceProcessor(
         Logger.d(TAG, "Setting dynamic range profile to $dynamicRangeProfile")
 
         val future = submitSafely {
-            renderer.init(dynamicRangeProfile)
+            val shaderOverrides = if (dynamicRangeProfile.isHdr) {
+                emptyMap()
+            } else {
+                val provider = FilterShaderProvider(filterState)
+                mapOf<GLUtils.InputFormat?, ShaderProvider?>(
+                    GLUtils.InputFormat.DEFAULT to provider,
+                    GLUtils.InputFormat.YUV to provider,
+                    GLUtils.InputFormat.UNKNOWN to provider,
+                )
+            }
+            renderer.init(dynamicRangeProfile, shaderOverrides)
         }
         try {
             future.get()
@@ -446,15 +457,64 @@ private class DefaultSurfaceProcessor(
     )
 }
 
-class DefaultSurfaceProcessorFactory :
-    ISurfaceProcessorInternal.Factory {
+class DefaultSurfaceProcessorFactory(
+    private val filterState: VideoFilterState = VideoFilterState()
+) : ISurfaceProcessorInternal.Factory {
     override fun create(
         dynamicRangeProfile: DynamicRangeProfile,
         dispatcherProvider: IVideoDispatcherProvider
     ): ISurfaceProcessorInternal {
         return DefaultSurfaceProcessor(
             dynamicRangeProfile,
-            dispatcherProvider.createVideoHandlerExecutor(THREAD_NAME_GL)
+            dispatcherProvider.createVideoHandlerExecutor(THREAD_NAME_GL),
+            filterState
         )
     }
+}
+
+private class FilterShaderProvider(
+    private val filterState: VideoFilterState,
+) : ShaderProvider {
+    override fun createFragmentShader(samplerVarName: String, fragCoordsVarName: String): String = """
+        #extension GL_OES_EGL_image_external : require
+        precision mediump float;
+        varying vec2 $fragCoordsVarName;
+        uniform samplerExternalOES $samplerVarName;
+        uniform float uAlphaScale;
+        uniform float uFilterBrightness;
+        uniform float uFilterContrast;
+        uniform float uFilterSaturation;
+        uniform float uFilterTemperature;
+        uniform float uFilterSharpness;
+        uniform float uFilterMonochrome;
+        uniform float uFilterSepia;
+        uniform float uFilterCinematic;
+        void main() {
+            vec4 src = texture2D($samplerVarName, $fragCoordsVarName);
+            vec3 color = src.rgb;
+            color += vec3(uFilterBrightness);
+            color = (color - 0.5) * uFilterContrast + 0.5;
+            color.r += uFilterTemperature * 0.12;
+            color.g += uFilterTemperature * 0.025;
+            color.b -= uFilterTemperature * 0.12;
+            float luminance = dot(color, vec3(0.299, 0.587, 0.114));
+            color = mix(vec3(luminance), color, uFilterSaturation);
+            vec2 pixel = vec2(0.001, 0.001);
+            vec3 neighbor = texture2D($samplerVarName, $fragCoordsVarName + pixel).rgb;
+            color += (color - neighbor) * uFilterSharpness * 0.65;
+            vec3 sepiaColor = vec3(
+                dot(color, vec3(0.393, 0.769, 0.189)),
+                dot(color, vec3(0.349, 0.686, 0.168)),
+                dot(color, vec3(0.272, 0.534, 0.131))
+            );
+            color = mix(color, sepiaColor, uFilterSepia);
+            color = mix(color, vec3(luminance), uFilterMonochrome);
+            float cinematicStrength = uFilterCinematic;
+            vec3 cinematicColor = (color * vec3(1.0 + 0.04 * cinematicStrength, 1.0, 1.0 - 0.04 * cinematicStrength) - 0.5) * (1.0 + 0.08 * cinematicStrength) + 0.5;
+            color = mix(color, cinematicColor, clamp(cinematicStrength, 0.0, 1.0));
+            gl_FragColor = vec4(clamp(color, 0.0, 1.0), src.a * uAlphaScale);
+        }
+    """.trimIndent()
+
+    override fun getUniformValues(): Map<String, Float> = filterState.uniformValues()
 }

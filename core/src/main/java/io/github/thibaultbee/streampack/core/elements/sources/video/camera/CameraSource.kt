@@ -25,6 +25,7 @@ import android.hardware.camera2.CaptureRequest
 import android.os.Build
 import android.util.Size
 import android.view.Surface
+import android.view.WindowManager
 import androidx.annotation.RequiresPermission
 import androidx.core.app.ActivityCompat
 import io.github.thibaultbee.streampack.core.elements.sources.video.AbstractPreviewableSource
@@ -37,6 +38,12 @@ import io.github.thibaultbee.streampack.core.elements.sources.video.camera.utils
 import io.github.thibaultbee.streampack.core.elements.sources.video.camera.utils.CameraSizes
 import io.github.thibaultbee.streampack.core.elements.sources.video.camera.utils.CameraSurface
 import io.github.thibaultbee.streampack.core.elements.sources.video.camera.utils.CaptureRequestWithTargetsBuilder
+import io.github.thibaultbee.streampack.core.elements.processing.video.DefaultSurfaceProcessorFactory
+import io.github.thibaultbee.streampack.core.elements.processing.video.VideoFilterRegistry
+import io.github.thibaultbee.streampack.core.elements.processing.video.ISurfaceProcessorInternal
+import io.github.thibaultbee.streampack.core.elements.processing.video.outputs.SurfaceOutput
+import io.github.thibaultbee.streampack.core.pipelines.DispatcherProvider
+import io.github.thibaultbee.streampack.core.elements.processing.video.source.ISourceInfoProvider
 import io.github.thibaultbee.streampack.core.elements.utils.time.Timebase
 import io.github.thibaultbee.streampack.core.logger.Logger
 import kotlinx.coroutines.CoroutineScope
@@ -100,6 +107,11 @@ internal class CameraSource(
 
     private val streamMutex = Mutex()
 
+    private var configuredResolution = Size(1920, 1080)
+    private var previewProcessor: ISurfaceProcessorInternal? = null
+    private var previewInputSurface: Surface? = null
+    private var previewOutputSurface: SurfaceOutput? = null
+
     init {
         val deviceCameras = manager.cameras
         require(deviceCameras.contains(cameraId)) {
@@ -157,14 +169,61 @@ internal class CameraSource(
             if (isPreviewingFlow.value) {
                 Logger.w(TAG, "Trying to set preview while previewing")
             }
-            controller.addOutput(CameraSurface(PREVIEW_NAME, surface))
+            val processor = previewProcessor ?: DefaultSurfaceProcessorFactory(VideoFilterRegistry.state)
+                .create(io.github.thibaultbee.streampack.core.elements.utils.av.video.DynamicRangeProfile.sdr, DispatcherProvider())
+                .also { previewProcessor = it }
+            previewOutputSurface?.let { processor.removeOutputSurface(it) }
+            previewInputSurface?.let { controller.removeOutput(PREVIEW_NAME); processor.removeInputSurface(it) }
+            val input = processor.createInputSurface(configuredResolution, timebase)
+            previewInputSurface = input
+            controller.addOutput(CameraSurface(PREVIEW_NAME, input))
+            val infoProvider = infoProviderFlow.value
+            val previewInfoProvider = object : ISourceInfoProvider {
+                override val rotationDegrees: Int get() = infoProvider.rotationDegrees
+                override val isMirror: Boolean get() = infoProvider.isMirror
+                override fun getRelativeRotationDegrees(targetRotation: Int, requiredMirroring: Boolean): Int =
+                    infoProvider.getRelativeRotationDegrees(targetRotation, requiredMirroring)
+                override fun getSurfaceSize(targetResolution: Size): Size = configuredResolution
+            }
+            val displaySize = currentDisplaySize()
+            val output = SurfaceOutput(
+                targetSurface = surface,
+                targetResolution = displaySize,
+                targetRotation = currentDisplayRotation(),
+                isStreaming = { isPreviewingFlow.value },
+                sourceResolution = configuredResolution,
+                needMirroring = false,
+                sourceInfoProvider = previewInfoProvider,
+                viewportOffsetX = -(displaySize.width / 24),
+            )
+            previewOutputSurface = output
+            processor.addOutputSurface(output)
         }
+    }
+
+    private fun currentDisplayRotation(): Int {
+        @Suppress("DEPRECATION")
+        return (context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager)
+            ?.defaultDisplay?.rotation ?: Surface.ROTATION_0
+    }
+
+    private fun currentDisplaySize(): Size {
+        val metrics = context.resources.displayMetrics
+        val width = metrics.widthPixels
+        val height = metrics.heightPixels
+        return if (width >= height) Size(width, height) else Size(height, width)
     }
 
     @SuppressLint("MissingPermission")
     override suspend fun resetPreviewImpl() {
         withContext(defaultDispatcher) {
             controller.removeOutput(PREVIEW_NAME)
+            previewOutputSurface?.let { previewProcessor?.removeOutputSurface(it) }
+            previewInputSurface?.let { previewProcessor?.removeInputSurface(it) }
+            previewProcessor?.release()
+            previewOutputSurface = null
+            previewInputSurface = null
+            previewProcessor = null
         }
     }
 
@@ -187,6 +246,7 @@ internal class CameraSource(
 
     @RequiresPermission(Manifest.permission.CAMERA)
     override suspend fun configure(config: VideoSourceConfig) {
+        configuredResolution = config.resolution
         if (!settings.characteristics.isFpsSupported(config.fps)) {
             Logger.w(TAG, "Camera $cameraId does not support ${config.fps} fps")
         }

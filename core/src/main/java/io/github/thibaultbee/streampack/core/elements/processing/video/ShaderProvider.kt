@@ -50,4 +50,6 @@ interface ShaderProvider {
     ): String? {
         return null
     }
+
+    fun getUniformValues(): Map<String, Float> = emptyMap()
 }
