@@ -458,7 +458,7 @@ private class DefaultSurfaceProcessor(
 }
 
 class DefaultSurfaceProcessorFactory(
-    private val filterState: VideoFilterState = VideoFilterState()
+    private val filterState: VideoFilterState = VideoFilterRegistry.state
 ) : ISurfaceProcessorInternal.Factory {
     override fun create(
         dynamicRangeProfile: DynamicRangeProfile,
