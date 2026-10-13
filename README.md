@@ -1,3 +1,13 @@
+> **PerHost Streaming Lab · Experimental fork**
+>
+> This public fork is used by **PerHost** to evaluate and test Android live-streaming components, including video capture, encoding, SRT/RTMP transport, and streaming stability. It supports ongoing integration tests for the private PerHost Android application.
+>
+> Experimental modifications may differ from upstream and are not presented as official releases.
+>
+> **Upstream attribution:** Based on [StreamPack by ThibaultBee](https://github.com/ThibaultBee/StreamPack). Original authorship and applicable licenses remain with their respective holders. PerHost maintains only its own modifications.
+>
+> The PerHost Android application and APK builds remain private.
+
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.thibaultbee.streampack/streampack-core)](https://central.sonatype.com/artifact/io.github.thibaultbee.streampack/streampack-core)
 [![License](https://img.shields.io/github/license/ThibaultBee/StreamPack)](LICENSE.md)
 [![API](https://img.shields.io/badge/API-21%2B-brightgreen.svg)](https://android-arsenal.com/api?level=21)
